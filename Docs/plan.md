@@ -14,8 +14,8 @@ Phase 1 — Réseau ✅
   [2] content/content.css            ✅
   [+] manifest.json host_permissions corrigé (*.leclercdrive.fr)
 
-Phase 2 — Script de contenu
-  [3] content/content.js             ← dépend du SW et des sélecteurs CSS validés
+Phase 2 — Script de contenu ✅
+  [3] content/content.js             ✅
 
 Phase 3 — Popup
   [4] popup/popup.html
