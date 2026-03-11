@@ -13,9 +13,20 @@ function normalizeWineName(name) {
     .trim();
 }
 
+// Mots génériques ignorés dans le calcul de similarité
+const STOP_WORDS = new Set([
+  "rouge", "blanc", "rose", "vin", "vins", "chateau",
+  "aop", "aoc", "igp", "vdf", "bio", "bib",
+  "selection", "cuvee", "reserve", "grande", "grand",
+  "cl", "ml", "bag", "box",
+]);
+
 function computeMatchScore(query, candidate) {
-  const qTokens = normalizeWineName(query).split(" ").filter(Boolean);
+  const allQTokens = normalizeWineName(query).split(" ").filter(Boolean);
   const cTokens = normalizeWineName(candidate).split(" ").filter(Boolean);
+
+  // Filtrer les stop words pour le calcul, mais garder les millésimes
+  const qTokens = allQTokens.filter((t) => !STOP_WORDS.has(t) || /^\d{4}$/.test(t));
 
   if (qTokens.length === 0) return 0;
 
@@ -23,7 +34,7 @@ function computeMatchScore(query, candidate) {
   let vintageBonus = 0;
 
   for (const qt of qTokens) {
-    if (cTokens.some((ct) => ct === qt)) {
+    if (cTokens.some((ct) => ct === qt || ct.startsWith(qt) || qt.startsWith(ct))) {
       matched++;
       if (/^\d{4}$/.test(qt)) vintageBonus = 0.1;
     }
@@ -33,50 +44,83 @@ function computeMatchScore(query, candidate) {
   return Math.min(overlap + vintageBonus, 1);
 }
 
+function cleanWineName(name) {
+  return name
+    .replace(/^(AOP|AOC|IGP|VDF|Vin de France)\s+/i, "")
+    .replace(/\s*[-–]\s*(75cl|37[,.]5cl|1[,.]5L|3L|5L|BIB|Bag in box|bib).*$/i, "")
+    .replace(/\s*[-–]\s*(Rouge|Blanc|Rosé|rouge|blanc|rosé)(\s|$)/i, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Vivino utilise Algolia pour la recherche — mêmes clés publiques que leur site web
+const ALGOLIA_URL =
+  "https://9takgwjuxl-dsn.algolia.net/1/indexes/WINES_prod/query" +
+  "?x-algolia-agent=Algolia+for+JavaScript+(3.33.0);+Browser+(lite)" +
+  "&x-algolia-application-id=9TAKGWJUXL" +
+  "&x-algolia-api-key=60c11b2f1068885161d95ca068d3a6ae";
+
 async function fetchVivino(wineName) {
   const key = normalizeWineName(wineName);
   if (vivinoCache.has(key)) return vivinoCache.get(key);
 
+  const query = cleanWineName(wineName);
+
   try {
-    const url = `https://www.vivino.com/api/explore/explore?q=${encodeURIComponent(wineName)}&language=fr`;
-    const resp = await fetch(url);
+    const resp = await fetch(ALGOLIA_URL, {
+      method: "POST",
+      headers: {
+        "accept": "application/json",
+        "content-type": "application/json",
+      },
+      referrer: "https://www.vivino.com/",
+      referrerPolicy: "origin-when-cross-origin",
+      mode: "cors",
+      credentials: "omit",
+      body: JSON.stringify({
+        params: `query=${encodeURIComponent(query)}&hitsPerPage=5`,
+      }),
+    });
+
     if (!resp.ok) {
+      console.warn(`[CaveScore] Algolia HTTP ${resp.status} pour "${wineName}"`);
       vivinoCache.set(key, null);
       return null;
     }
 
     const data = await resp.json();
-    const matches = data?.explore_vintage?.matches;
+    const hits = data?.hits;
 
-    if (!matches || matches.length === 0) {
+    if (!hits || hits.length === 0) {
       vivinoCache.set(key, null);
       return null;
     }
 
+    // Algolia trie déjà par pertinence — on prend le premier hit
+    // dont le match score dépasse le seuil minimum
     let bestMatch = null;
-    let bestScore = 0;
 
-    for (const m of matches) {
-      const vintage = m.vintage;
-      const wine = vintage?.wine;
-      if (!wine) continue;
+    for (const hit of hits) {
+      const candidateName = hit.name || "";
+      if (!candidateName) continue;
 
-      const candidateName = [wine.name, vintage.year].filter(Boolean).join(" ");
-      const score = computeMatchScore(wineName, candidateName);
+      const matchScore = computeMatchScore(query, candidateName);
+      if (matchScore < 0.3) continue;
 
-      if (score > bestScore) {
-        bestScore = score;
-        bestMatch = {
-          matched: true,
-          score: vintage.statistics?.ratings_average ?? wine.statistics?.ratings_average ?? null,
-          ratingsCount: vintage.statistics?.ratings_count ?? wine.statistics?.ratings_count ?? 0,
-          vivinoUrl: `https://www.vivino.com${wine.seo_name ? `/w/${wine.id}` : ""}`,
-          wineName: candidateName,
-        };
-      }
+      bestMatch = {
+        matched: true,
+        score: hit.statistics?.ratings_average ?? null,
+        ratingsCount: hit.statistics?.ratings_count ?? 0,
+        vivinoUrl: hit.seo_name && hit.id
+          ? `https://www.vivino.com/${hit.seo_name}/w/${hit.id}`
+          : null,
+        wineName: candidateName,
+      };
+      console.log(`[CaveScore] "${query}" → "${candidateName}" (match=${matchScore.toFixed(2)}, rating=${bestMatch.score})`);
+      break; // premier résultat Algolia acceptable
     }
 
-    if (bestMatch && bestScore >= 0.6) {
+    if (bestMatch) {
       vivinoCache.set(key, bestMatch);
       return bestMatch;
     }

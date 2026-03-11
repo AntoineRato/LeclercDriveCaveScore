@@ -71,13 +71,13 @@ function updateBadge(badge, res) {
     link.className = badge.className;
     link.innerHTML = `
       <span class="cs-badge__score">${score?.toFixed(1) ?? "?"}</span>
-      <span class="cs-badge__count">${res.ratingsCount ?? 0}</span>
+      <span class="cs-badge__count">(${res.ratingsCount ?? 0})</span>
     `;
     badge.replaceWith(link);
   } else {
     badge.innerHTML = `
       <span class="cs-badge__score">${score?.toFixed(1) ?? "?"}</span>
-      <span class="cs-badge__count">${res.ratingsCount ?? 0}</span>
+      <span class="cs-badge__count">(${res.ratingsCount ?? 0})</span>
     `;
   }
 }
