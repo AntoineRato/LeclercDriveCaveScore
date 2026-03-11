@@ -47,8 +47,10 @@ function computeMatchScore(query, candidate) {
 function cleanWineName(name) {
   return name
     .replace(/^(AOP|AOC|IGP|VDF|Vin de France)\s+/i, "")
-    .replace(/\s*[-–]\s*(75cl|37[,.]5cl|1[,.]5L|3L|5L|BIB|Bag in box|bib).*$/i, "")
-    .replace(/\s*[-–]\s*(Rouge|Blanc|Rosé|rouge|blanc|rosé)(\s|$)/i, " ")
+    .replace(/\s*[-–]\s*\d+[,.]?\d*\s*(cl|l)\b.*$/i, "")
+    .replace(/\bvin\b/gi, "")
+    .replace(/\b\d+\s*x\s*\d+\s*(cl|l)\b/gi, "")
+    .replace(/\b\d+[,.]?\d*\s*(cl|l)\b/gi, "")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -92,6 +94,7 @@ async function fetchVivino(wineName) {
     const hits = data?.hits;
 
     if (!hits || hits.length === 0) {
+      console.warn(`[CaveScore] Aucun résultat Algolia pour "${query}"`);
       vivinoCache.set(key, null);
       return null;
     }
@@ -125,6 +128,8 @@ async function fetchVivino(wineName) {
       return bestMatch;
     }
 
+    console.warn(`[CaveScore] Aucun match acceptable pour "${query}" — premiers hits:`,
+      hits.slice(0, 3).map(h => h.name));
     const result = { matched: false };
     vivinoCache.set(key, result);
     return result;
