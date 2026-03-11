@@ -1,0 +1,54 @@
+/* CaveScore — Badge overlay styles */
+
+.cs-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  color: #fff;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  transition: opacity 0.2s;
+}
+
+.cs-badge:hover {
+  opacity: 0.85;
+}
+
+/* Score colours */
+.cs-badge--green  { background-color: #27ae60; }
+.cs-badge--yellow { background-color: #f39c12; }
+.cs-badge--red    { background-color: #E2001A; }
+.cs-badge--nr     { background-color: #9b9b9b; }
+
+/* Loading state */
+.cs-badge--loading {
+  background-color: #d0d0d0;
+  animation: cs-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes cs-pulse {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 1; }
+}
+
+/* Badge text */
+.cs-badge__score {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.cs-badge__count {
+  font-size: 10px;
+  opacity: 0.8;
+  line-height: 1.2;
+}
