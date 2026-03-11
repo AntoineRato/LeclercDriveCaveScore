@@ -22,8 +22,8 @@ Phase 3 — Popup ✅
   [5] popup/popup.css                ✅
   [6] popup/popup.js                 ✅
 
-Phase 4 — Assets
-  [7] icons/icon16.png, icon48.png, icon128.png
+Phase 4 — Assets ✅
+  [7] icons/icon16.png, icon48.png, icon128.png ✅
 ```
 
 Après chaque phase : charger l'extension dans Chrome (`chrome://extensions` → Load unpacked) et vérifier l'absence d'erreurs.
