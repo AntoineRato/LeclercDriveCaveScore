@@ -17,10 +17,10 @@ Phase 1 — Réseau ✅
 Phase 2 — Script de contenu ✅
   [3] content/content.js             ✅
 
-Phase 3 — Popup
-  [4] popup/popup.html
-  [5] popup/popup.css
-  [6] popup/popup.js                 ← dépend de chrome.storage.local (écrit par content.js)
+Phase 3 — Popup ✅
+  [4] popup/popup.html               ✅
+  [5] popup/popup.css                ✅
+  [6] popup/popup.js                 ✅
 
 Phase 4 — Assets
   [7] icons/icon16.png, icon48.png, icon128.png

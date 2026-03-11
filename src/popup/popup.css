@@ -1,0 +1,129 @@
+/* CaveScore — Popup styles */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  width: 380px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  color: #333;
+}
+
+header {
+  padding: 12px 16px;
+  background: #E2001A;
+  color: #fff;
+}
+
+header h1 {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+#controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  border-bottom: 1px solid #eee;
+}
+
+.filter-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+#counter {
+  font-size: 12px;
+  color: #888;
+}
+
+#ranking {
+  list-style: none;
+  max-height: 480px;
+  overflow-y: auto;
+}
+
+.wine-entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.wine-entry:hover {
+  background: #fafafa;
+}
+
+.wine-entry__rank {
+  font-weight: 700;
+  color: #E2001A;
+  min-width: 20px;
+  text-align: right;
+}
+
+.wine-entry__name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wine-entry__price {
+  color: #666;
+  white-space: nowrap;
+}
+
+.wine-entry__score {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  color: #fff;
+  font-weight: 700;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.wine-entry__score--green  { background-color: #27ae60; }
+.wine-entry__score--yellow { background-color: #f39c12; }
+.wine-entry__score--red    { background-color: #E2001A; }
+.wine-entry__score--nr     { background-color: #9b9b9b; }
+
+.wine-entry__links {
+  display: flex;
+  gap: 4px;
+}
+
+.wine-entry__links a {
+  font-size: 11px;
+  color: #E2001A;
+  text-decoration: none;
+}
+
+.wine-entry__links a:hover {
+  text-decoration: underline;
+}
+
+footer {
+  padding: 10px 16px;
+  text-align: center;
+  border-top: 1px solid #eee;
+}
+
+footer a {
+  color: #E2001A;
+  text-decoration: none;
+  font-size: 12px;
+}
+
+footer a:hover {
+  text-decoration: underline;
+}
