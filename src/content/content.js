@@ -80,7 +80,7 @@ function updateBadge(badge, res) {
   const score = res.score;
   let colorClass;
   if (score >= 4.0) colorClass = "cs-badge--green";
-  else if (score >= 3.5) colorClass = "cs-badge--yellow";
+  else if (score >= 3.0) colorClass = "cs-badge--yellow";
   else colorClass = "cs-badge--red";
 
   badge.classList.add(colorClass);

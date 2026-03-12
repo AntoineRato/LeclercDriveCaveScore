@@ -14,8 +14,8 @@ Color-coded badges appear on each wine card: green (≥ 4.0), yellow (3.5–3.9)
 - **Zero config** — no setup needed; the extension reads your active Leclerc Drive store from your existing session
 - **Color-coded scores**:
   - 🟢 ≥ 4.0 — green
-  - 🟡 3.5–3.9 — yellow
-  - 🔴 < 3.5 — red
+  - 🟡 3.0–3.9 — yellow
+  - 🔴 < 3.0 — red
   - ⚪ no match — grey "NR"
 
 ## How it works

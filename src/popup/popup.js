@@ -20,7 +20,7 @@ function sortResults(results) {
 function scoreColorClass(score) {
   if (score === null) return "wine-entry__score--nr";
   if (score >= 4.0) return "wine-entry__score--green";
-  if (score >= 3.5) return "wine-entry__score--yellow";
+  if (score >= 3.0) return "wine-entry__score--yellow";
   return "wine-entry__score--red";
 }
 
