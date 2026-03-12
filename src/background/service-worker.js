@@ -193,11 +193,7 @@ async function fetchVivino(wineName, wineType = null) {
 
   const query = cleanWineName(wineName);
 
-  // Construire les params Algolia avec filtre optionnel sur le type de vin
-  let algoliaParams = `query=${encodeURIComponent(query)}&hitsPerPage=10`;
-  if (wineType) {
-    algoliaParams += `&filters=wine_type_id=${wineType}`;
-  }
+  const algoliaParams = `query=${encodeURIComponent(query)}&hitsPerPage=10`;
 
   try {
     const resp = await fetch(ALGOLIA_URL, {
@@ -231,7 +227,8 @@ async function fetchVivino(wineName, wineType = null) {
     // Debug : afficher la structure du premier hit pour voir les champs disponibles
     console.log(`[CaveScore] Structure hit Algolia pour "${query}":`,
       JSON.stringify(Object.keys(hits[0])),
-      "winery:", JSON.stringify(hits[0].winery));
+      "winery:", JSON.stringify(hits[0].winery),
+      "wine_type_id:", hits[0].wine_type_id);
 
     // Parcourir tous les hits et garder le meilleur match
     let bestMatch = null;
@@ -247,7 +244,14 @@ async function fetchVivino(wineName, wineType = null) {
       const wineryName = hit.winery?.name || "";
       const fullCandidate = wineryName ? `${wineryName} ${wineName}` : wineName;
 
-      const matchScore = computeMatchScore(query, fullCandidate);
+      let matchScore = computeMatchScore(query, fullCandidate);
+
+      // Pénaliser si le type de vin ne correspond pas (ex: on cherche un blanc, le hit est un rouge)
+      const hitWineType = hit.wine_type_id ?? null;
+      if (wineType && hitWineType && hitWineType !== wineType) {
+        matchScore *= 0.5;
+      }
+
       if (matchScore > bestScore) {
         bestScore = matchScore;
         bestMatch = {
