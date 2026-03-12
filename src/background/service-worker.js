@@ -187,11 +187,17 @@ const ALGOLIA_URL =
   "&x-algolia-application-id=9TAKGWJUXL" +
   "&x-algolia-api-key=60c11b2f1068885161d95ca068d3a6ae";
 
-async function fetchVivino(wineName) {
-  const key = normalizeWineName(wineName);
-  if (vivinoCache.has(key)) return vivinoCache.get(key);
+async function fetchVivino(wineName, wineType = null) {
+  const cacheKey = `${normalizeWineName(wineName)}|${wineType ?? ""}`;
+  if (vivinoCache.has(cacheKey)) return vivinoCache.get(cacheKey);
 
   const query = cleanWineName(wineName);
+
+  // Construire les params Algolia avec filtre optionnel sur le type de vin
+  let algoliaParams = `query=${encodeURIComponent(query)}&hitsPerPage=10`;
+  if (wineType) {
+    algoliaParams += `&filters=wine_type_id=${wineType}`;
+  }
 
   try {
     const resp = await fetch(ALGOLIA_URL, {
@@ -204,14 +210,12 @@ async function fetchVivino(wineName) {
       referrerPolicy: "origin-when-cross-origin",
       mode: "cors",
       credentials: "omit",
-      body: JSON.stringify({
-        params: `query=${encodeURIComponent(query)}&hitsPerPage=10`,
-      }),
+      body: JSON.stringify({ params: algoliaParams }),
     });
 
     if (!resp.ok) {
       console.warn(`[CaveScore] Algolia HTTP ${resp.status} pour "${wineName}"`);
-      vivinoCache.set(key, null);
+      vivinoCache.set(cacheKey, null);
       return null;
     }
 
@@ -219,8 +223,8 @@ async function fetchVivino(wineName) {
     const hits = data?.hits;
 
     if (!hits || hits.length === 0) {
-      console.warn(`[CaveScore] Aucun résultat Algolia pour "${query}"`);
-      vivinoCache.set(key, null);
+      console.warn(`[CaveScore] Aucun résultat Algolia pour "${query}"${wineType ? ` (type=${wineType})` : ""}`);
+      vivinoCache.set(cacheKey, null);
       return null;
     }
 
@@ -260,7 +264,7 @@ async function fetchVivino(wineName) {
 
     if (bestMatch && bestScore >= 0.4) {
       console.log(`[CaveScore] "${query}" → "${bestMatch.wineName}" (match=${bestScore.toFixed(2)}, rating=${bestMatch.score})`);
-      vivinoCache.set(key, bestMatch);
+      vivinoCache.set(cacheKey, bestMatch);
       return bestMatch;
     }
 
@@ -270,7 +274,7 @@ async function fetchVivino(wineName) {
         return `${full} (${computeMatchScore(query, full).toFixed(2)})`;
       }));
     const result = { matched: false };
-    vivinoCache.set(key, result);
+    vivinoCache.set(cacheKey, result);
     return result;
   } catch (err) {
     console.error("[CaveScore] Vivino fetch error:", err);
@@ -280,7 +284,7 @@ async function fetchVivino(wineName) {
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === "FETCH_VIVINO") {
-    fetchVivino(msg.wineName).then(sendResponse);
+    fetchVivino(msg.wineName, msg.wineType).then(sendResponse);
     return true; // maintient le canal ouvert pour réponse async
   }
 });

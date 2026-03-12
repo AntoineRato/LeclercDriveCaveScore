@@ -5,12 +5,35 @@ const WINE_RAYON_IDS = ["289555", "284518"];
 const PRODUCT_LIST_SELECTOR = "div#divWCRS310_ProductsList";
 const CARD_SELECTOR = "li.liWCRS310_Product[data-vignette='disponible']";
 
+// Mapping filtres Leclerc → wine_type_id Vivino (1=red, 2=white, 3=rosé, 7=sparkling)
+const FILTER_TO_WINE_TYPE = {
+  "289556": 1,  // Vin rouge
+  "289557": 2,  // Vin blanc
+  "289558": 3,  // Vin rosé
+};
+
 let wineResults = [];
+let detectedWineType = null;
 
 function isWinePage() {
   return WINE_RAYON_IDS.some((id) =>
     window.location.pathname.includes(`rayon-${id}`)
   );
+}
+
+function detectWineType() {
+  const url = window.location.href;
+
+  // Champagnes et Mousseux = rayon dédié
+  if (url.includes("rayon-284518")) return 7;
+
+  // Vins filtrés par couleur
+  const filterMatch = url.match(/Filtres=4-(\d+)/);
+  if (filterMatch) {
+    return FILTER_TO_WINE_TYPE[filterMatch[1]] || null;
+  }
+
+  return null; // rayon vins sans filtre → on ne sait pas
 }
 
 function extractWineData(card) {
@@ -95,6 +118,7 @@ async function processCard(card) {
     const res = await chrome.runtime.sendMessage({
       type: "FETCH_VIVINO",
       wineName: data.name,
+      wineType: detectedWineType,
     });
 
     updateBadge(badge, res);
@@ -141,6 +165,10 @@ function observeNewCards() {
 
 function init() {
   if (!isWinePage()) return;
+
+  // Détecter la catégorie de vin depuis l'URL
+  detectedWineType = detectWineType();
+  console.log(`[CaveScore] Wine type détecté: ${detectedWineType ?? "inconnu"}`);
 
   // Reset results for this page load
   wineResults = [];
