@@ -2,7 +2,7 @@
 
 Browser extension that overlays Vivino ratings directly on wine cards at [leclercdrive.fr](https://www.leclercdrive.fr), with a built-in ranking popup to find the best bottles at a glance.
 
-![CaveScore in action — Vivino ratings overlaid on Leclerc Drive wine cards](icons/screenshot.png)
+![CaveScore in action — Vivino ratings overlaid on Leclerc Drive wine cards](icons/wine_demo_screenshot.png)
 
 Color-coded badges appear on each wine card: green (≥ 4.0), yellow (3.5–3.9), red (< 3.5), grey "NR" if no match found.
 
