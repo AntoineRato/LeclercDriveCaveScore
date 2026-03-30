@@ -26,7 +26,7 @@
 /* Score colours */
 .cs-badge--green  { background-color: #27ae60; }
 .cs-badge--yellow { background-color: #f39c12; }
-.cs-badge--red    { background-color: #E2001A; }
+.cs-badge--red    { background-color: #c0392b; }
 .cs-badge--nr     { background-color: #9b9b9b; }
 
 /* Loading state */

@@ -8,6 +8,14 @@ function loadResults() {
   });
 }
 
+function loadSiteInfo() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get("cs_site", (data) => {
+      resolve(data.cs_site || null);
+    });
+  });
+}
+
 function sortResults(results) {
   return results.slice().sort((a, b) => {
     if (a.score === null && b.score === null) return 0;
@@ -49,7 +57,7 @@ function renderList(results, filterMatchOnly) {
       <span class="wine-entry__score ${colorClass}">${scoreText}</span>
       <span class="wine-entry__links">
         ${r.vivinoUrl ? `<a href="${escapeHtml(r.vivinoUrl)}" target="_blank" title="Voir sur Vivino">V</a>` : ""}
-        <a href="${escapeHtml(r.productUrl)}" target="_blank" title="Voir sur Drive">D</a>
+        <a href="${escapeHtml(r.productUrl)}" target="_blank" title="Voir sur le site">D</a>
       </span>
     `;
 
@@ -64,6 +72,15 @@ function escapeHtml(str) {
 }
 
 async function init() {
+  // Load site info and apply branding
+  const site = await loadSiteInfo();
+  if (site) {
+    document.documentElement.style.setProperty("--cs-accent", site.color);
+    const siteLink = document.getElementById("siteLink");
+    siteLink.href = site.homeUrl;
+    siteLink.textContent = `Ouvrir ${site.name}`;
+  }
+
   const raw = await loadResults();
   const sorted = sortResults(raw);
   const toggle = document.getElementById("filterToggle");

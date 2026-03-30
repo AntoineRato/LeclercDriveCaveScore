@@ -1,61 +1,105 @@
 // CaveScore — Content Script
-// Injecte les badges Vivino sur les cartes vins de leclercdrive.fr
-
-const WINE_RAYON_IDS = ["289555", "284518"];
-const PRODUCT_LIST_SELECTOR = "div#divWCRS310_ProductsList";
-const CARD_SELECTOR = "li.liWCRS310_Product[data-vignette='disponible']";
-
-// Mapping filtres Leclerc → wine_type_id Vivino (1=red, 2=white, 3=rosé, 7=sparkling)
-const FILTER_TO_WINE_TYPE = {
-  "289556": 1,  // Vin rouge
-  "289557": 2,  // Vin blanc
-  "289558": 3,  // Vin rosé
-};
+// Injects Vivino rating badges on wine cards across supported retailer websites.
+// Site-specific logic is defined in adapters.js (loaded before this script).
 
 let wineResults = [];
 let detectedWineType = null;
+let adapter = null;
+let onWinePage = false;
 
-function isWinePage() {
-  return WINE_RAYON_IDS.some((id) =>
-    window.location.pathname.includes(`rayon-${id}`)
-  );
-}
-
-function detectWineType() {
-  const url = window.location.href;
-
-  // Champagnes et Mousseux = rayon dédié
-  if (url.includes("rayon-284518")) return 7;
-
-  // Vins filtrés par couleur
-  const filterMatch = url.match(/Filtres=4-(\d+)/);
-  if (filterMatch) {
-    return FILTER_TO_WINE_TYPE[filterMatch[1]] || null;
+function findAdapter() {
+  const host = window.location.hostname;
+  for (const [domain, config] of Object.entries(CS_ADAPTERS)) {
+    if (host === domain || host.endsWith("." + domain)) {
+      return config;
+    }
   }
-
-  return null; // rayon vins sans filtre → on ne sait pas
+  return null;
 }
 
-function extractWineData(card) {
-  const nameEl = card.querySelector(".pWCRS310_Desc .aWCRS310_Product");
-  const name = nameEl?.textContent.replace(/\s+/g, " ").trim() || null;
+// ── Wine pre-filter ─────────────────────────────────────────────────
+// Used on non-wine pages to avoid useless Vivino API calls.
+// On dedicated wine pages (isWinePage=true), this filter is skipped.
 
-  const intPart = card
-    .querySelector(".pWCRS310_PrixUnitairePartieEntiere")
-    ?.textContent.trim();
-  const decPart = card
-    .querySelector(".pWCRS310_PrixUnitairePartieDecimale")
-    ?.textContent.trim();
-  const price = intPart ? `${intPart},${decPart ?? "00"}\u20AC` : null;
+function isLikelyWine(name) {
+  if (!name) return false;
+  const n = name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
 
-  const linkEl = card.querySelector("a.aWCRS310_Product");
-  const productUrl = linkEl?.href || window.location.href;
+  // ── Step 1: Hard reject — wine is never sold in grams ──
+  if (/\d+\s*(g|kg)\b/.test(n)) return false;
 
-  return { name, price, productUrl, cardElement: card };
+  // ── Step 2: Hard reject — wine used as ingredient ──
+  // "au vin", "et vin", "avec vin" → cooking product
+  if (/\b(au|aux|et|avec|a la|al)\s+vin\b/.test(n)) return false;
+  // "vin blanc et aromates", "vin rouge et légumes" → ingredient listing
+  if (/\bvin\s+(blanc|rouge|rose)\s+(et|aux?|avec|,)/.test(n)) return false;
+
+  // ── Step 3: Accept — strong wine indicators (checked BEFORE food keywords) ──
+
+  // Product name starts with "Vin " → in a grocery store, always wine
+  // (food products say "sauce au vin", "filets... vin blanc" — vin mid-name)
+  if (/^vin\s/.test(n)) return true;
+
+  // Producer/estate prefixes followed by a name
+  if (/\b(chateau|domaine|clos|mas|maison)\s+[a-z]/.test(n)) return true;
+
+  // Sparkling wine types
+  if (/\b(champagne|cremant|prosecco|cava|blanquette|mousseux)\b/.test(n))
+    return true;
+
+  // Major French appellations (most common — not exhaustive)
+  if (
+    /\b(bordeaux|bourgogne|beaujolais|chablis|sancerre|muscadet|pouilly|meursault|pommard|gevrey|saint.emilion|pomerol|medoc|margaux|pauillac|pessac|graves|sauternes|entre.deux.mers|cotes?\s*(du|de)\s*(rhone|provence|roussillon|gascogne|bourg|blaye)|chateauneuf|gigondas|vacqueyras|crozes|hermitage|condrieu|saint.joseph|cornas|cote.rotie|bandol|minervois|corbieres|fitou|faugeres|saint.chinian|pic.saint.loup|terrasses.du.larzac|cahors|madiran|jurancon|gaillac|chinon|bourgueil|vouvray|savennieres|anjou|touraine|alsace|cote.de.provence|luberon|ventoux|costiere|tavel|rasteau|banyuls|collioure|languedoc|pays\s+d.oc)\b/.test(
+      n
+    )
+  )
+    return true;
+
+  // Grape varieties as primary descriptor
+  if (
+    /\b(merlot|cabernet|chardonnay|sauvignon|pinot|syrah|shiraz|grenache|malbec|gamay|viognier|mourvedre|cinsault|tempranillo|tannat|carignan|marsanne|roussanne|vermentino|chenin|gewurztraminer|riesling|picpoul|sangiovese|nebbiolo|primitivo|zinfandel)\b/.test(
+      n
+    )
+  )
+    return true;
+
+  // Wine-specific terms
+  if (
+    /\b(millesime|cuvee|brut|demi.sec|moelleux|liquoreux|vendanges?\s*tardives?|grand\s*cru|premier\s*cru|vieilles?\s*vignes?|bag.in.box|bib)\b/.test(
+      n
+    )
+  )
+    return true;
+
+  // Wine bottle sizes (75cl, 37.5cl, 1.5L magnum)
+  if (/\b(75|37[.,]5)\s*cl\b/.test(n)) return true;
+
+  // AOP/AOC/IGP only with additional wine context
+  if (
+    /\b(aop|aoc|igp|vdf)\b/.test(n) &&
+    /\b(rouge|blanc|rose|vin|cotes|chateau|domaine|cuvee|pays)\b/.test(n)
+  )
+    return true;
+
+  // ── Step 4: Reject — food product keywords ──
+  // (checked AFTER wine indicators so "Café de Paris Brut" isn't killed by "café")
+  if (
+    /\b(vinaigre|sauce|bouillon|marinade|filets?|terrine|pate|risotto|fondue|fromage|beurre|huile|moutarde|soupe|potage|confiture|creme|yaourt|biscuit|chocolat|gateau|farine|aromates?|legumes?|poulet|boeuf|porc|agneau|canard|saumon|thon|maquereau|sardine|crevette|biere|cidre|limonade|soda|jus|sirop|cafe|lait|riz|pizza|chips|cereale|compote|conserve|bocal|miel|olive|cornichon|condiment)\b/.test(
+      n
+    )
+  )
+    return false;
+
+  return false;
 }
+
+// ── Badge injection ─────────────────────────────────────────────────
 
 function injectLoadingBadge(card) {
-  // Ensure parent has relative positioning for absolute badge
   const style = getComputedStyle(card);
   if (style.position === "static") {
     card.style.position = "relative";
@@ -85,7 +129,6 @@ function updateBadge(badge, res) {
 
   badge.classList.add(colorClass);
 
-  // Wrap badge in a link to Vivino if URL available
   if (res.vivinoUrl) {
     const link = document.createElement("a");
     link.href = res.vivinoUrl;
@@ -105,12 +148,17 @@ function updateBadge(badge, res) {
   }
 }
 
+// ── Card processing ─────────────────────────────────────────────────
+
 async function processCard(card) {
   if (card.dataset.csProcessed) return;
   card.dataset.csProcessed = "true";
 
-  const data = extractWineData(card);
+  const data = adapter.extractWineData(card);
   if (!data.name) return;
+
+  // On non-wine pages, pre-filter to avoid useless API calls
+  if (!onWinePage && !isLikelyWine(data.name)) return;
 
   const badge = injectLoadingBadge(card);
 
@@ -140,22 +188,26 @@ async function processCard(card) {
 }
 
 function processVisibleCards() {
-  const cards = document.querySelectorAll(CARD_SELECTOR);
+  if (!adapter.cardSelector) return;
+  const cards = document.querySelectorAll(adapter.cardSelector);
   cards.forEach((card) => processCard(card));
 }
 
 function observeNewCards() {
-  const container = document.querySelector(PRODUCT_LIST_SELECTOR) || document.body;
+  if (!adapter.cardSelector) return;
+  const container =
+    document.querySelector(adapter.productListSelector) || document.body;
 
   const observer = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
       for (const node of mutation.addedNodes) {
         if (node.nodeType !== Node.ELEMENT_NODE) continue;
-        if (node.matches?.(CARD_SELECTOR)) {
+        if (node.matches?.(adapter.cardSelector)) {
           processCard(node);
         }
-        // Also check children (in case a wrapper was added)
-        node.querySelectorAll?.(CARD_SELECTOR)?.forEach((card) => processCard(card));
+        node.querySelectorAll?.(adapter.cardSelector)?.forEach((card) =>
+          processCard(card)
+        );
       }
     }
   });
@@ -164,13 +216,25 @@ function observeNewCards() {
 }
 
 function init() {
-  if (!isWinePage()) return;
+  adapter = findAdapter();
+  if (!adapter) return;
 
-  // Détecter la catégorie de vin depuis l'URL
-  detectedWineType = detectWineType();
-  console.log(`[CaveScore] Wine type détecté: ${detectedWineType ?? "inconnu"}`);
+  onWinePage = adapter.isWinePage();
+  detectedWineType = onWinePage ? adapter.detectWineType() : null;
 
-  // Reset results for this page load
+  console.log(
+    `[CaveScore] ${adapter.name} — wine page: ${onWinePage}, type: ${detectedWineType ?? "unknown"}`
+  );
+
+  // Store site info for the popup
+  chrome.storage.local.set({
+    cs_site: {
+      name: adapter.name,
+      color: adapter.color,
+      homeUrl: adapter.homeUrl,
+    },
+  });
+
   wineResults = [];
   chrome.storage.local.set({ cs_results: [] });
 

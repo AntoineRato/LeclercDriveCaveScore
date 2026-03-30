@@ -1,20 +1,36 @@
 {
   "manifest_version": 3,
   "name": "CaveScore",
-  "version": "0.1.0",
-  "description": "Overlays Vivino ratings on wines at your local Leclerc Drive.",
+  "version": "0.2.0",
+  "description": "Overlays Vivino ratings on wines across French online grocery stores.",
 
   "permissions": ["storage"],
   "host_permissions": [
     "https://*.leclercdrive.fr/*",
+    "https://*.intermarche.com/*",
+    "https://*.coursesu.com/*",
+    "https://*.casinodrive.fr/*",
+    "https://*.chronodrive.com/*",
+    "https://*.monoprix.fr/*",
+    "https://*.franprix.fr/*",
+    "https://*.nicolas.com/*",
     "https://www.vivino.com/*",
     "https://*.algolia.net/*"
   ],
 
   "content_scripts": [
     {
-      "matches": ["https://*.leclercdrive.fr/*"],
-      "js": ["content/content.js"],
+      "matches": [
+        "https://*.leclercdrive.fr/*",
+        "https://*.intermarche.com/*",
+        "https://*.coursesu.com/*",
+        "https://*.casinodrive.fr/*",
+        "https://*.chronodrive.com/*",
+        "https://*.monoprix.fr/*",
+        "https://*.franprix.fr/*",
+        "https://*.nicolas.com/*"
+      ],
+      "js": ["content/adapters.js", "content/content.js"],
       "css": ["content/content.css"],
       "run_at": "document_idle"
     }
